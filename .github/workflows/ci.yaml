@@ -1,0 +1,97 @@
+# ./.github/workflows/ci.yaml
+name: Build and Push NGINX App
+
+on:
+  push:
+    branches:
+      - main # Or master, or your primary development branch
+    paths: # Only run if files in these paths change
+      - 'app/**' # Trigger on changes to the application code or Dockerfile
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to commit manifest changes back to the repo
+      packages: write # Needed to push to GitHub Container Registry (GHCR)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # To push back manifest changes, the default GITHUB_TOKEN needs write access.
+          # Configure this in repository settings -> Actions -> General -> Workflow permissions.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }} # Your GitHub username or organization
+          password: ${{ secrets.GITHUB_TOKEN }} # GITHUB_TOKEN can be used to auth with GHCR
+
+      - name: Generate Image Tag
+        id: image_tag
+        # Using the short SHA for the image tag
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app # Path to your Dockerfile and app code
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ steps.image_tag.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
+          cache-from: type=gha # Enable build cache from GitHub Actions cache
+          cache-to: type=gha,mode=max # Enable build cache to GitHub Actions cache
+        env:
+          # Use the repository name directly, assuming it's already lowercase
+          REPO_NAME: ${{ github.event.repository.name }}
+
+      - name: Update Kubernetes Manifest
+        run: |
+          # Install yq if not available on the runner
+          if ! command -v yq &> /dev/null
+          then
+              echo "yq not found, installing..."
+              sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+          fi
+          
+          MANIFEST_FILE="./k8s/deployment.yaml"
+          NEW_IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ steps.image_tag.outputs.tag }}"
+          
+          echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE"
+          
+          # Using yq to update the image.
+          # This targets the first container in the deployment. If you have multiple, adjust the selector.
+          # Example: .spec.template.spec.containers[] | select(.name == "nginx-container") | .image = \"$NEW_IMAGE\"
+          yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE)' -i "$MANIFEST_FILE"
+          
+          echo "Manifest after update:"
+          cat "$MANIFEST_FILE"
+        env:
+          # Use the repository name directly, assuming it's already lowercase
+          REPO_NAME: ${{ github.event.repository.name }}
+          # Pass NEW_IMAGE as an environment variable to yq
+          NEW_IMAGE: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ steps.image_tag.outputs.tag }}"
+
+
+      - name: Commit and Push Manifest Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add ./k8s/deployment.yaml
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit to deployment.yaml."
+          else
+            # Add [skip ci] to the commit message to prevent this commit from re-triggering the workflow
+            # if the workflow is configured to also trigger on k8s/** path changes.
+            git commit -m "Update Kubernetes deployment image to ${{ steps.image_tag.outputs.tag }} [skip ci]"
+            git push
+            echo "Pushed manifest changes."
+          fi
