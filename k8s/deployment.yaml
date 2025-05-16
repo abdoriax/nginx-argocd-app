@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: nginx-container
-          image: ghcr.io/abdoriax/nginx-argocd-app:b7ab7d8
+          image: ghcr.io/abdoriax/nginx-argocd-app:0f43c6a
           ports:
             - containerPort: 80
           resources:
