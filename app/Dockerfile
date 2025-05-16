@@ -2,7 +2,7 @@
 FROM nginx:1.25-alpine
 
 # Remove default NGINX welcome page
-RUN rm /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
+RUN rm /usr/share/nginx/html/index.html
 
 # Copy our custom HTML file to the NGINX web root directory
 COPY ./index.html /usr/share/nginx/html/index.html
