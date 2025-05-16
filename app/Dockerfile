@@ -1,5 +1,5 @@
 # Use the official NGINX image from Docker Hub
-FROM nginx:1.25-alpine
+FROM nginx:1.28-alpine
 
 # Remove default NGINX welcome page
 RUN rm /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
