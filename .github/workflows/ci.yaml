@@ -168,7 +168,7 @@ jobs:
   update_manifest_production:
     name: Update Production Manifest
     needs: build_and_push_docker_image
-    if: !contains(toLower(github.ref_name), 'alpha') && !contains(toLower(github.ref_name), 'beta')
+    if: '!contains(toLower(github.ref_name), ''alpha'') && !contains(toLower(github.ref_name), ''beta'')'
     runs-on: ubuntu-latest
     environment:
       name: production
