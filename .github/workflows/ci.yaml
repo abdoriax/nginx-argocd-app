@@ -13,7 +13,6 @@ permissions:
   packages: write
 
 jobs:
-
   build_and_push_docker_image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
@@ -42,7 +41,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.REPO_NAME }}
           tags: |
-            type=ref,event=tag # Uses the Git tag as the Docker image tag
+            type=ref,event=tag
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
@@ -61,27 +60,24 @@ jobs:
   update_manifest_dev:
     name: Update Development Manifest
     needs: build_and_push_docker_image
-    if: contains(github.ref_name, 'alpha')
+    if: contains(toLower(github.ref_name), 'alpha')
     runs-on: ubuntu-latest
     environment:
       name: development
     env:
-
       MANIFEST_FILE: "./k8s/overlays/development/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update dev deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install yq (YAML processor)
+      - name: Install yq
         run: |
-          if ! command -v yq &> /dev/null
-          then
-              echo "yq not found, installing..."
-              sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+          if ! command -v yq &> /dev/null; then
+            sudo wget https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/bin/yq
+            sudo chmod +x /usr/bin/yq
           fi
           yq --version
 
@@ -89,9 +85,17 @@ jobs:
         env:
           NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
         run: |
+          echo "Current tag: ${{ github.ref_name }}"
           echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
+          if [ ! -f "$MANIFEST_FILE" ]; then
+            echo "Error: $MANIFEST_FILE not found"
+            exit 1
+          fi
+          if ! yq e '.spec.template.spec.containers[0]' "$MANIFEST_FILE" > /dev/null; then
+            echo "Error: No container found in $MANIFEST_FILE"
+            exit 1
+          fi
           yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
-          echo "Manifest $MANIFEST_FILE after update:"
           cat "$MANIFEST_FILE"
 
       - name: Commit and Push Manifest Changes
@@ -110,7 +114,7 @@ jobs:
   update_manifest_staging:
     name: Update Staging Manifest
     needs: build_and_push_docker_image
-    if: contains(github.ref_name, 'beta')
+    if: contains(toLower(github.ref_name), 'beta')
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -125,13 +129,26 @@ jobs:
 
       - name: Install yq
         run: |
-          if ! command -v yq &> /dev/null; then sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq; fi
+          if ! command -v yq &> /dev/null; then
+            sudo wget https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/bin/yq
+            sudo chmod +x /usr/bin/yq
+          fi
+          yq --version
 
       - name: Update Kubernetes Manifest
         env:
           NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
         run: |
+          echo "Current tag: ${{ github.ref_name }}"
           echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
+          if [ ! -f "$MANIFEST_FILE" ]; then
+            echo "Error: $MANIFEST_FILE not found"
+            exit 1
+          fi
+          if ! yq e '.spec.template.spec.containers[0]' "$MANIFEST_FILE" > /dev/null; then
+            echo "Error: No container found in $MANIFEST_FILE"
+            exit 1
+          fi
           yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
           cat "$MANIFEST_FILE"
 
@@ -166,13 +183,26 @@ jobs:
 
       - name: Install yq
         run: |
-          if ! command -v yq &> /dev/null; then sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq; fi
+          if ! command -v yq &> /dev/null; then
+            sudo wget https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/bin/yq
+            sudo chmod +x /usr/bin/yq
+          fi
+          yq --version
 
       - name: Update Kubernetes Manifest
         env:
           NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
         run: |
+          echo "Current tag: ${{ github.ref_name }}"
           echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
+          if [ ! -f "$MANIFEST_FILE" ]; then
+            echo "Error: $MANIFEST_FILE not found"
+            exit 1
+          fi
+          if ! yq e '.spec.template.spec.containers[0]' "$MANIFEST_FILE" > /dev/null; then
+            echo "Error: No container found in $MANIFEST_FILE"
+            exit 1
+          fi
           yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
           cat "$MANIFEST_FILE"
 
