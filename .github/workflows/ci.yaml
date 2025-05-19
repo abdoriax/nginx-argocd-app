@@ -24,6 +24,14 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Debug Checkout
+        run: |
+          git rev-parse HEAD
+          ls -l app/
+          cat app/index.html || echo "index.html not found"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -43,6 +51,9 @@ jobs:
           tags: |
             type=ref,event=tag
 
+      - name: Debug Image Tag
+        run: echo "Image tag: ${{ steps.meta.outputs.version }}"
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -60,6 +71,7 @@ jobs:
   update_manifest_dev:
     name: Update Development Manifest
     needs: build_and_push_docker_image
+    if: ${{ contains(github.ref_name.toLowerCase(), 'alpha') }}
     runs-on: ubuntu-latest
     environment:
       name: development
@@ -67,14 +79,6 @@ jobs:
       MANIFEST_FILE: "./k8s/overlays/development/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update dev deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
-      - name: Check Tag for Alpha
-        run: |
-          TAG_NAME="${{ github.ref_name }}"
-          if ! echo "$TAG_NAME" | grep -i "alpha" > /dev/null; then
-            echo "Tag $TAG_NAME does not contain 'alpha', skipping dev manifest update"
-            exit 1
-          fi
-          echo "Tag $TAG_NAME contains 'alpha', proceeding with dev manifest update"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -115,13 +119,14 @@ jobs:
             echo "No changes to commit to $MANIFEST_FILE."
           else
             git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
-            git push
+            git push origin main
             echo "Pushed manifest changes for development."
           fi
 
   update_manifest_staging:
     name: Update Staging Manifest
     needs: build_and_push_docker_image
+    if: ${{ contains(github.ref_name.toLowerCase(), 'beta') }}
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -129,14 +134,6 @@ jobs:
       MANIFEST_FILE: "./k8s/overlays/staging/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update staging deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
-      - name: Check Tag for Beta
-        run: |
-          TAG_NAME="${{ github.ref_name }}"
-          if ! echo "$TAG_NAME" | grep -i "beta" > /dev/null; then
-            echo "Tag $TAG_NAME does not contain 'beta', skipping staging manifest update"
-            exit 1
-          fi
-          echo "Tag $TAG_NAME contains 'beta', proceeding with staging manifest update"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -177,13 +174,14 @@ jobs:
             echo "No changes to commit to $MANIFEST_FILE."
           else
             git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
-            git push
+            git push origin main
             echo "Pushed manifest changes for staging."
           fi
 
   update_manifest_production:
     name: Update Production Manifest
     needs: build_and_push_docker_image
+    if: ${{ !contains(github.ref_name.toLowerCase(), 'alpha') && !contains(github.ref_name.toLowerCase(), 'beta') }}
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -191,14 +189,6 @@ jobs:
       MANIFEST_FILE: "./k8s/overlays/production/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update production deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
-      - name: Check Tag for Production
-        run: |
-          TAG_NAME="${{ github.ref_name }}"
-          if echo "$TAG_NAME" | grep -i "alpha" > /dev/null || echo "$TAG_NAME" | grep -i "beta" > /dev/null; then
-            echo "Tag $TAG_NAME contains 'alpha' or 'beta', skipping production manifest update"
-            exit 1
-          fi
-          echo "Tag $TAG_NAME does not contain 'alpha' or 'beta', proceeding with production manifest update"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -239,6 +229,6 @@ jobs:
             echo "No changes to commit to $MANIFEST_FILE."
           else
             git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
-            git push
+            git push origin main
             echo "Pushed manifest changes for production."
           fi
