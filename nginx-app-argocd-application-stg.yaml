@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
 
-  name: my-nginx-app
+  name: my-nginx-app-stg
   namespace: argocd
 
 spec:
@@ -12,11 +12,11 @@ spec:
   source:
     repoURL: https://github.com/abdoriax/nginx-argocd-app.git
     targetRevision: HEAD
-    path: k8s
+    path: 'k8s/overlays/staging'
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: my-nginx-app
+    namespace: nginx-app-stg
 
   syncPolicy:
     automated:

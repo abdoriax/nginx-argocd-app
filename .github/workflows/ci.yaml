@@ -1,24 +1,30 @@
-name: Build and Push NGINX App
+name: Build Docker, Update Manifests for Argo CD on Tag
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'app/**'
+    tags:
+      - 'v*.*.*'
+
+env:
+  IMAGE_REGISTRY: ghcr.io
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  build-and-push-image:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
 
+  build_and_push_docker_image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image_meta_output.outputs.version }}
+      image_name: ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.REPO_NAME }}
+    env:
+      REPO_NAME: ${{ github.event.repository.name }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -26,65 +32,166 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate Image Tag
-        id: image_tag
-        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.REPO_NAME }}
+          tags: |
+            type=ref,event=tag # Uses the Git tag as the Docker image tag
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: ./app
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ steps.image_tag.outputs.tag }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-        env:
-          REPO_NAME: ${{ github.event.repository.name }}
 
-      - name: Update Kubernetes Manifest
+      - name: Set image tag output
+        id: image_meta_output
+        run: echo "version=${{ steps.meta.outputs.version }}" >> $GITHUB_OUTPUT
+
+  update_manifest_dev:
+    name: Update Development Manifest
+    needs: build_and_push_docker_image
+    if: contains(github.ref_name, 'alpha')
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+    env:
+
+      MANIFEST_FILE: "./k8s/overlays/development/deployment.yaml"
+      GIT_COMMIT_MESSAGE: "Update dev deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq (YAML processor)
         run: |
-          # Install yq if not available on the runner
           if ! command -v yq &> /dev/null
           then
               echo "yq not found, installing..."
               sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
           fi
-          
-          MANIFEST_FILE="./k8s/deployment.yaml"
-          NEW_IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ steps.image_tag.outputs.tag }}"
-          
-          echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE"
-          
-          # Using yq to update the image.
-          # This targets the first container in the deployment. If you have multiple, adjust the selector.
-          # Example: .spec.template.spec.containers[] | select(.name == "nginx-container") | .image = \"$NEW_IMAGE\"
-          yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE)' -i "$MANIFEST_FILE"
-          
-          echo "Manifest after update:"
-          cat "$MANIFEST_FILE"
-        env:
-          REPO_NAME: ${{ github.event.repository.name }}
-          NEW_IMAGE: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ steps.image_tag.outputs.tag }}"
+          yq --version
 
+      - name: Update Kubernetes Manifest
+        env:
+          NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
+        run: |
+          echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
+          # This command updates the image of the first container in the specified deployment manifest.
+          # If you have multiple containers or a different structure, adjust the yq path.
+          # Example for a specific container name: '.spec.template.spec.containers[] | select(.name == "my-app-container") | .image = strenv(NEW_IMAGE_WITH_TAG)'
+          yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
+          echo "Manifest $MANIFEST_FILE after update:"
+          cat "$MANIFEST_FILE"
 
       - name: Commit and Push Manifest Changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add ./k8s/deployment.yaml
+          git add "$MANIFEST_FILE"
           # Check if there are changes to commit
           if git diff --staged --quiet; then
-            echo "No changes to commit to deployment.yaml."
+            echo "No changes to commit to $MANIFEST_FILE."
           else
-            # Add [skip ci] to the commit message to prevent this commit from re-triggering the workflow
-            # if the workflow is configured to also trigger on k8s/** path changes.
-            git commit -m "Update Kubernetes deployment image to ${{ steps.image_tag.outputs.tag }} [skip ci]"
+            git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
+            # Determine the current branch from the tag (usually tags are on a commit reachable from main/master)
+            # Or, you might want to push to a specific manifest branch if you use one.
+            # For simplicity, assuming the tag is on a commit that's part of the default branch history.
             git push
-            echo "Pushed manifest changes."
+            echo "Pushed manifest changes for development."
+          fi
+
+  update_manifest_staging:
+    name: Update Staging Manifest
+    needs: build_and_push_docker_image
+    if: contains(github.ref_name, 'beta')
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    env:
+      MANIFEST_FILE: "./k8s/overlays/staging/deployment.yaml"
+      GIT_COMMIT_MESSAGE: "Update staging deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          if ! command -v yq &> /dev/null; then sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq; fi
+
+      - name: Update Kubernetes Manifest
+        env:
+          NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
+        run: |
+          echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
+          yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
+          cat "$MANIFEST_FILE"
+
+      - name: Commit and Push Manifest Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add "$MANIFEST_FILE"
+          if git diff --staged --quiet; then
+            echo "No changes to commit to $MANIFEST_FILE."
+          else
+            git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
+            git push
+            echo "Pushed manifest changes for staging."
+          fi
+
+  update_manifest_production:
+    name: Update Production Manifest
+    needs: build_and_push_docker_image
+    if:  ! contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta')
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    env:
+      MANIFEST_FILE: "./k8s/overlays/production/deployment.yaml"
+      GIT_COMMIT_MESSAGE: "Update production deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          if ! command -v yq &> /dev/null; then sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq; fi
+
+      - name: Update Kubernetes Manifest
+        env:
+          NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
+        run: |
+          echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
+          yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
+          cat "$MANIFEST_FILE"
+
+      - name: Commit and Push Manifest Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add "$MANIFEST_FILE"
+          if git diff --staged --quiet; then
+            echo "No changes to commit to $MANIFEST_FILE."
+          else
+            git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
+            git push
+            echo "Pushed manifest changes for production."
           fi
