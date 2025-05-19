@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-nginx-app-service
-  namespace: my-nginx-app
+  name: nginx-app-stg-service
+  namespace: nginx-app-stg
 spec:
   selector:
-    app: my-nginx-app
+    app: nginx-app-stg
   ports:
     - protocol: TCP
       port: 80

@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-nginx-app
-  namespace: my-nginx-app
+  name: nginx-app-prod
+  namespace: nginx-app-prod
   labels:
-    app: my-nginx-app
+    app: nginx-app-prod
 spec:
   replicas: 2
   revisionHistoryLimit: 1
   selector:
     matchLabels:
-      app: my-nginx-app
+      app: nginx-app-prod
   template:
     metadata:
       labels:
-        app: my-nginx-app
+        app: nginx-app-prod
     spec:
       containers:
         - name: nginx-container
