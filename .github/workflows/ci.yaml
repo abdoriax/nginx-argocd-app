@@ -62,7 +62,7 @@ jobs:
   update_manifest_dev:
     name: Update Development Manifest
     needs: build_and_push_docker_image
-    if: ${{ contains(github.ref_name.toLowerCase(), 'alpha') }}
+    if: contains(github.ref_name, 'alpha')
     runs-on: ubuntu-latest
     environment:
       name: development
@@ -117,7 +117,7 @@ jobs:
   update_manifest_staging:
     name: Update Staging Manifest
     needs: build_and_push_docker_image
-    if: ${{ contains(github.ref_name.toLowerCase(), 'beta') }}
+    if: contains(github.ref_name, 'beta')
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -172,7 +172,7 @@ jobs:
   update_manifest_production:
     name: Update Production Manifest
     needs: build_and_push_docker_image
-    if: ${{ !contains(github.ref_name.toLowerCase(), 'alpha') && !contains(github.ref_name.toLowerCase(), 'beta') }}
+    if: "!contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta')"
     runs-on: ubuntu-latest
     environment:
       name: production
