@@ -60,7 +60,6 @@ jobs:
   update_manifest_dev:
     name: Update Development Manifest
     needs: build_and_push_docker_image
-    if: contains(toLower(github.ref_name), 'alpha')
     runs-on: ubuntu-latest
     environment:
       name: development
@@ -68,6 +67,14 @@ jobs:
       MANIFEST_FILE: "./k8s/overlays/development/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update dev deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
+      - name: Check Tag for Alpha
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if ! echo "$TAG_NAME" | grep -i "alpha" > /dev/null; then
+            echo "Tag $TAG_NAME does not contain 'alpha', skipping dev manifest update"
+            exit 1
+          fi
+          echo "Tag $TAG_NAME contains 'alpha', proceeding with dev manifest update"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -114,7 +121,6 @@ jobs:
   update_manifest_staging:
     name: Update Staging Manifest
     needs: build_and_push_docker_image
-    if: contains(toLower(github.ref_name), 'beta')
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -122,6 +128,14 @@ jobs:
       MANIFEST_FILE: "./k8s/overlays/staging/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update staging deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
+      - name: Check Tag for Beta
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if ! echo "$TAG_NAME" | grep -i "beta" > /dev/null; then
+            echo "Tag $TAG_NAME does not contain 'beta', skipping staging manifest update"
+            exit 1
+          fi
+          echo "Tag $TAG_NAME contains 'beta', proceeding with staging manifest update"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -168,7 +182,6 @@ jobs:
   update_manifest_production:
     name: Update Production Manifest
     needs: build_and_push_docker_image
-    if: '!contains(toLower(github.ref_name), ''alpha'') && !contains(toLower(github.ref_name), ''beta'')'
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -176,6 +189,14 @@ jobs:
       MANIFEST_FILE: "./k8s/overlays/production/deployment.yaml"
       GIT_COMMIT_MESSAGE: "Update production deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
     steps:
+      - name: Check Tag for Production
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if echo "$TAG_NAME" | grep -i "alpha" > /dev/null || echo "$TAG_NAME" | grep -i "beta" > /dev/null; then
+            echo "Tag $TAG_NAME contains 'alpha' or 'beta', skipping production manifest update"
+            exit 1
+          fi
+          echo "Tag $TAG_NAME does not contain 'alpha' or 'beta', proceeding with production manifest update"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
