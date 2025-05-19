@@ -5,9 +5,6 @@ on:
     tags:
       - 'v*.*.*'
 
-env:
-  IMAGE_REGISTRY: ghcr.io
-
 permissions:
   contents: write
   packages: write
@@ -18,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.image_meta_output.outputs.version }}
-      image_name: ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.REPO_NAME }}
+      image_name: ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}
     env:
       REPO_NAME: ${{ github.event.repository.name }}
     steps:
@@ -33,7 +30,7 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.IMAGE_REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -41,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.REPO_NAME }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}
           tags: |
             type=ref,event=tag
 
@@ -68,7 +65,7 @@ jobs:
       name: development
     env:
       MANIFEST_FILE: "./k8s/overlays/development/deployment.yaml"
-      GIT_COMMIT_MESSAGE: "Update dev deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
+      GIT_COMMIT_MESSAGE: "Update dev deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -78,11 +75,9 @@ jobs:
 
       - name: Install yq
         run: |
-          if ! command -v yq &> /dev/null; then
             sudo wget https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/bin/yq
             sudo chmod +x /usr/bin/yq
-          fi
-          yq --version
+            yq --version
 
       - name: Update Kubernetes Manifest
         env:
@@ -123,7 +118,7 @@ jobs:
       name: staging
     env:
       MANIFEST_FILE: "./k8s/overlays/staging/deployment.yaml"
-      GIT_COMMIT_MESSAGE: "Update staging deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
+      GIT_COMMIT_MESSAGE: "Update staging deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -133,11 +128,9 @@ jobs:
 
       - name: Install yq
         run: |
-          if ! command -v yq &> /dev/null; then
             sudo wget https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/bin/yq
             sudo chmod +x /usr/bin/yq
-          fi
-          yq --version
+            yq --version
 
       - name: Update Kubernetes Manifest
         env:
@@ -178,7 +171,7 @@ jobs:
       name: production
     env:
       MANIFEST_FILE: "./k8s/overlays/production/deployment.yaml"
-      GIT_COMMIT_MESSAGE: "Update production deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }} [skip ci]"
+      GIT_COMMIT_MESSAGE: "Update production deployment image to ${{ needs.build_and_push_docker_image.outputs.image_tag }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -188,11 +181,9 @@ jobs:
 
       - name: Install yq
         run: |
-          if ! command -v yq &> /dev/null; then
             sudo wget https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/bin/yq
             sudo chmod +x /usr/bin/yq
-          fi
-          yq --version
+            yq --version
 
       - name: Update Kubernetes Manifest
         env:
