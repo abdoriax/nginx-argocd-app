@@ -90,9 +90,6 @@ jobs:
           NEW_IMAGE_WITH_TAG: "${{ needs.build_and_push_docker_image.outputs.image_name }}:${{ needs.build_and_push_docker_image.outputs.image_tag }}"
         run: |
           echo "Updating $MANIFEST_FILE with image: $NEW_IMAGE_WITH_TAG"
-          # This command updates the image of the first container in the specified deployment manifest.
-          # If you have multiple containers or a different structure, adjust the yq path.
-          # Example for a specific container name: '.spec.template.spec.containers[] | select(.name == "my-app-container") | .image = strenv(NEW_IMAGE_WITH_TAG)'
           yq e '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE_WITH_TAG)' -i "$MANIFEST_FILE"
           echo "Manifest $MANIFEST_FILE after update:"
           cat "$MANIFEST_FILE"
@@ -102,14 +99,10 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add "$MANIFEST_FILE"
-          # Check if there are changes to commit
           if git diff --staged --quiet; then
             echo "No changes to commit to $MANIFEST_FILE."
           else
             git commit -m "${{ env.GIT_COMMIT_MESSAGE }}"
-            # Determine the current branch from the tag (usually tags are on a commit reachable from main/master)
-            # Or, you might want to push to a specific manifest branch if you use one.
-            # For simplicity, assuming the tag is on a commit that's part of the default branch history.
             git push
             echo "Pushed manifest changes for development."
           fi
