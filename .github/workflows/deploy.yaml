@@ -1,0 +1,19 @@
+name: Main Deploy Workflow
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  call_ci_workflow:
+    name: Call Reusable CI Workflow
+    uses: ./.github/workflows/ci.yaml
+    with:
+      triggering_ref: ${{ github.ref_name }}
+      source_checkout_ref: ${{ github.ref_name }}
+    secrets: inherit
