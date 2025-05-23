@@ -1,9 +1,16 @@
 name: Build Docker, Update Manifests for Argo CD on Tag
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_call:
+    inputs:
+      triggering_ref:
+        description: 'The git ref name (e.g., v1.0.0, v1.0.0-alpha, or a simulated tag for testing) that is initiating the process. Used for tag parsing and Docker metadata.'
+        required: true
+        type: string
+      source_checkout_ref:
+        description: 'The git ref (branch, tag, or SHA) to checkout for building the application. Defaults to the value of triggering_ref if not specified.'
+        required: false
+        type: string
 
 permissions:
   contents: write
