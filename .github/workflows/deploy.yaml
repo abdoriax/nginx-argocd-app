@@ -15,5 +15,4 @@ jobs:
     uses: abdoriax/reusable-workflows/.github/workflows/ci.yaml@feat/change-ci
     with:
       triggering_ref: ${{ github.ref_name }}
-      source_checkout_ref: ${{ github.ref_name }}
     secrets: inherit
