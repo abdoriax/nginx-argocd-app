@@ -25,12 +25,11 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  debug_event:
-    name: Echo GitHub Event
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dump GitHub event payload
-        run: echo "${{ toJson(github.event) }}"
+  call_parser_workflow:
+    name: Call Reusable Parser Workflow
+    uses: ./.github/workflows/reusable-parser.yml
+    with:
+      github_event: ${{ toJson(github.event) }}
