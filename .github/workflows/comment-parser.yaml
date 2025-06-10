@@ -7,11 +7,10 @@ on:
         description: 'The JSON payload from the original trigger event'
         required: true
         type: string
+permissions: read-all
 
 jobs:
   parse-and-echo:
-    permissions:
-      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data
