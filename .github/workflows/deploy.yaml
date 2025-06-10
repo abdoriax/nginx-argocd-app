@@ -30,6 +30,6 @@ permissions:
 jobs:
   call_parser_workflow:
     name: Call Reusable Parser Workflow
-    uses: ./.github/workflows/reusable-parser.yml
+    uses: ./.github/workflows/reusable-parser.yaml
     with:
       github_event: ${{ toJson(github.event) }}
