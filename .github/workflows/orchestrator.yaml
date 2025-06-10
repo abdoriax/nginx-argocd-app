@@ -3,10 +3,6 @@ name: Main Orchestrator Workflow
 on:
   workflow_call:
     inputs:
-      trigger_type:
-        description: "The type of event that triggered the orchestrator ('tag' or 'comment')"
-        required: true
-        type: string
       github_event:
         description: 'The JSON payload from the original trigger event'
         required: true
