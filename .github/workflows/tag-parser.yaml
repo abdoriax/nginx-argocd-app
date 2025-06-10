@@ -1,0 +1,42 @@
+name: Reusable Event Parser
+
+on:
+  workflow_call:
+    inputs:
+      github_event:
+        description: 'The JSON payload of the github.event from the caller workflow'
+        required: true
+        type: string
+
+jobs:
+  parse-and-echo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse Event Data
+        id: parsed_data
+        run: |
+          sha=$(echo '${{ inputs.github_event }}' | jq -r .after)
+          tag_name=$(echo '${{ inputs.github_event }}' | jq -r .ref | sed 's!refs/tags/!!')
+          
+          echo "sha=$sha" >> $GITHUB_OUTPUT
+          echo "tag=$tag_name" >> $GITHUB_OUTPUT
+
+      - name: Determine Environment
+        id: environment
+        run: |
+          TAG="${{ steps.parsed_data.outputs.tag }}"
+          ENV="production" # Default to production
+          if [[ "$TAG" == *alpha* ]]; then
+            ENV="development"
+          elif [[ "$TAG" == *beta* ]]; then
+            ENV="staging"
+          fi
+          echo "name=$ENV" >> $GITHUB_OUTPUT
+
+      - name: Echo Extracted Information
+        run: |
+          echo "--- Extracted Information ---"
+          echo "Commit SHA:   ${{ steps.parsed_data.outputs.sha }}"
+          echo "Tag:          ${{ steps.parsed_data.outputs.tag }}"
+          echo "Environment:  ${{ steps.environment.outputs.name }}"
+          echo "---------------------------"
