@@ -1,4 +1,4 @@
-name: Reusable Comment Parser
+name: Reusable Comment Parser Workflow
 
 on:
   workflow_call:
