@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   call_orchestrator:
-    name: Call Orchestrator for Tag
+    name: Call Orchestrator Workflow
     uses: ./.github/workflows/orchestrator.yaml
     with:
       github_event: ${{ toJson(github.event) }}
