@@ -13,5 +13,4 @@ jobs:
     name: Call Orchestrator for Comment
     uses: ./.github/workflows/orchestrator.yaml
     with:
-      trigger_type: 'comment'
       github_event: ${{ toJson(github.event) }}

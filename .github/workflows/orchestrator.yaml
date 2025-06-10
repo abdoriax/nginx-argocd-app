@@ -18,14 +18,13 @@ permissions:
 jobs:
   call_tag_parser:
     name: Call Tag Parser
-    if: inputs.trigger_type == 'tag'
+    if: startsWith(fromJson(inputs.github_event).ref, 'refs/tags/')
     uses: ./.github/workflows/tag-parser.yaml
     with:
       github_event: ${{ inputs.github_event }}
 
   call_comment_parser:
     name: Call Comment Parser
-    if: inputs.trigger_type == 'comment'
     uses: ./.github/workflows/comment-parser.yaml
     with:
       comment_body: ${{ fromJson(inputs.github_event).comment.body }}
