@@ -1,4 +1,4 @@
-name: Trigger on New Tag
+name: Trigger on New Tag pushed
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   call_orchestrator:
