@@ -6,7 +6,7 @@ on:
     startsWith: '/service'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   call_orchestrator:
