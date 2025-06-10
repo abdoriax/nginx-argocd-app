@@ -3,50 +3,33 @@ name: Reusable Comment Parser
 on:
   workflow_call:
     inputs:
-      comment_body:
-        description: 'The full body of the issue comment'
-        required: true
-        type: string
-      head_sha:
-        description: 'The head SHA of the branch that triggered the workflow'
+      github_event:
+        description: 'The JSON payload from the original trigger event'
         required: true
         type: string
 
 jobs:
-  comment-parse-and-echo:
+  parse-and-echo:
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data
         id: parsed_comment
         run: |
-          # Read the comment body into a variable
-          COMMENT="${{ inputs.comment_body }}"
-          
-          # Use awk to easily grab the second and third "words"
-          # Word 1: /service
-          # Word 2: operation (plan/apply)
-          # Word 3: environment (development/staging/production)
+          COMMENT=$(echo '${{ inputs.github_event }}' | jq -r .comment.body)
           OPERATION=$(echo "$COMMENT" | awk '{print $2}')
           ENVIRONMENT=$(echo "$COMMENT" | awk '{print $3}')
-          
-          # Check if the extracted values are valid
-          if [[ "$OPERATION" != "plan" && "$OPERATION" != "apply" ]]; then
-            echo "Error: Invalid operation. Must be 'plan' or 'apply'."
-            exit 1
-          fi
-          
-          if [[ "$ENVIRONMENT" != "development" && "$ENVIRONMENT" != "staging" && "$ENVIRONMENT" != "production" ]]; then
-            echo "Error: Invalid environment. Must be 'development', 'staging', or 'production'."
-            exit 1
-          fi
-          
+          # Note: The SHA is not available in the issue_comment payload by default.
+          # If needed, it must be fetched via API in the orchestrator.
+          SHA="N/A (Requires API call in orchestrator)"
+
           echo "operation=$OPERATION" >> $GITHUB_OUTPUT
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
 
       - name: Echo Comment Information
         run: |
           echo "--- Comment Trigger Information ---"
-          echo "Commit SHA:   ${{ inputs.head_sha }}"
+          echo "Commit SHA:   ${{ steps.parsed_comment.outputs.sha }}"
           echo "Operation:    ${{ steps.parsed_comment.outputs.operation }}"
           echo "Environment:  ${{ steps.parsed_comment.outputs.environment }}"
           echo "-----------------------------------"
