@@ -7,11 +7,24 @@ on:
         description: 'The JSON payload from the original trigger event'
         required: true
         type: string
+      event_name:
+        description: 'The event name that triggered the caller workflow'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+
+  echo_event_type:
+    name: Output GitHub event name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo the original event name
+        run: |
+          echo "The trigger event is: ${{ inputs.event_name }}"
+
   call_tag_parser:
     name: Call Tag Parser
     if: fromJson(inputs.github_event).ref != null && startsWith(fromJson(inputs.github_event).ref, 'refs/tags/')

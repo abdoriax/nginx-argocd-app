@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  issue_comment:
+    types: [created]
+    startsWith: '/service'
 
 permissions:
   contents: write
@@ -14,3 +17,4 @@ jobs:
     uses: ./.github/workflows/orchestrator.yaml
     with:
       github_event: ${{ toJson(github.event) }}
+      event_name: ${{ github.event_name}}
