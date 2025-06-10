@@ -8,8 +8,7 @@ on:
     types: [created]
     startsWith: '/service'
 
-permissions:
-  contents: write
+permissions: read-all
 
 jobs:
   call_orchestrator:
