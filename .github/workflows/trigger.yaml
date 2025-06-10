@@ -1,9 +1,12 @@
-name: Trigger on New Tag pushed
+name: Trigger on New Tag
 
 on:
   push:
     tags:
       - 'v*.*.*'
+  issue_comment:
+    types: [created]
+    startsWith: '/service'
 
 permissions:
   contents: write
@@ -13,5 +16,5 @@ jobs:
     name: Call Orchestrator for Tag
     uses: ./.github/workflows/orchestrator.yaml
     with:
-      trigger_type: 'tag'
       github_event: ${{ toJson(github.event) }}
+      event_name: ${{ github.event_name}}

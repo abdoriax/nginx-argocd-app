@@ -9,17 +9,34 @@ on:
         type: string
 
 jobs:
-  parse-and-echo:
+  tag-parse-and-echo:
     runs-on: ubuntu-latest
     steps:
       - name: Parse Event Data
         id: parsed_data
         run: |
+          # Extract the commit SHA and tag name from the event payload
           sha=$(echo '${{ inputs.github_event }}' | jq -r .after)
           tag_name=$(echo '${{ inputs.github_event }}' | jq -r .ref | sed 's!refs/tags/!!')
           
           echo "sha=$sha" >> $GITHUB_OUTPUT
           echo "tag=$tag_name" >> $GITHUB_OUTPUT
+
+      - name: Checkout repo to inspect git history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find Branch Name from Commit SHA
+        id: branch_info
+        run: |
+          # Use 'git branch --contains' to find all branches that include the tag's commit.
+          # We then clean up the output to get a single, clean branch name.
+          # - grep -v 'HEAD' filters out the detached HEAD state.
+          # - sed 's|.*/||' removes remote prefixes like 'origin/'.
+          # - head -n 1 takes the first branch in the list, a common convention.
+          BRANCH_NAME=$(git branch -r --contains ${{ steps.parsed_data.outputs.sha }} | grep -v 'HEAD' | sed 's|.*/||' | head -n 1)
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       - name: Determine Environment
         id: environment
@@ -38,5 +55,6 @@ jobs:
           echo "--- Extracted Information ---"
           echo "Commit SHA:   ${{ steps.parsed_data.outputs.sha }}"
           echo "Tag:          ${{ steps.parsed_data.outputs.tag }}"
+          echo "Source Branch:${{ steps.branch_info.outputs.branch }}"
           echo "Environment:  ${{ steps.environment.outputs.name }}"
           echo "---------------------------"

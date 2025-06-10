@@ -3,30 +3,38 @@ name: Main Orchestrator Workflow
 on:
   workflow_call:
     inputs:
-      trigger_type:
-        description: "The type of event that triggered the orchestrator ('tag' or 'comment')"
-        required: true
-        type: string
       github_event:
         description: 'The JSON payload from the original trigger event'
         required: true
+        type: string
+      event_name:
+        description: 'The event name that triggered the caller workflow'
+        required: false
         type: string
 
 permissions:
   contents: read
 
 jobs:
+
+  echo_event_type:
+    name: Output GitHub event name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo the original event name
+        run: |
+          echo "The trigger event is: ${{ inputs.event_name }}"
+
   call_tag_parser:
     name: Call Tag Parser
-    if: inputs.trigger_type == 'tag'
+    if: ${{ inputs.event_name == 'push' }}
     uses: ./.github/workflows/tag-parser.yaml
     with:
       github_event: ${{ inputs.github_event }}
 
   call_comment_parser:
     name: Call Comment Parser
-    if: inputs.trigger_type == 'comment'
+    if: ${{ inputs.event_name == 'issue_comment' }}
     uses: ./.github/workflows/comment-parser.yaml
     with:
-      comment_body: ${{ fromJson(inputs.github_event).comment.body }}
-      head_sha: ${{ fromJson(inputs.github_event).issue.pull_request.head.sha }}
+      github_event: ${{ inputs.github_event }}
