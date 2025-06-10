@@ -10,8 +10,6 @@ on:
 
 jobs:
   parse-and-echo:
-    permissions:
-      pull-requests: read 
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data

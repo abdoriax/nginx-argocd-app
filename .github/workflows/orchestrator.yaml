@@ -12,9 +12,6 @@ on:
         required: false
         type: string
 
-permissions:
-  contents: read
-
 jobs:
 
   echo_event_type:
@@ -34,8 +31,6 @@ jobs:
 
   call_comment_parser:
     name: Call Comment Parser
-    permissions:
-      pull-requests: read
     if: ${{ inputs.event_name == 'issue_comment' }}
     uses: ./.github/workflows/comment-parser.yaml
     with:
