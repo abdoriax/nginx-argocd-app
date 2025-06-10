@@ -10,6 +10,8 @@ on:
 
 jobs:
   parse-and-echo:
+    permissions:
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data
@@ -26,10 +28,29 @@ jobs:
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "sha=$SHA" >> $GITHUB_OUTPUT
 
+      - name: Find Branch Name if Comment is on a PR
+        id: branch_info
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Default branch name to N/A
+          BRANCH_NAME="N/A (Comment is not on a Pull Request)"
+          # Check if the 'pull_request' key exists in the issue payload
+          PR_URL=$(echo '${{ inputs.github_event }}' | jq -r '.issue.pull_request.url')
+          
+          if [[ "$PR_URL" != "null" ]]; then
+            # If it exists, call the GitHub API to get PR details
+            # Then parse the JSON response to get the head branch name
+            BRANCH_NAME=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "$PR_URL" | jq -r '.head.ref')
+          fi
+          
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
       - name: Echo Comment Information
         run: |
           echo "--- Comment Trigger Information ---"
           echo "Commit SHA:   ${{ steps.parsed_comment.outputs.sha }}"
+          echo "Source Branch:${{ steps.branch_info.outputs.branch }}"
           echo "Operation:    ${{ steps.parsed_comment.outputs.operation }}"
           echo "Environment:  ${{ steps.parsed_comment.outputs.environment }}"
           echo "-----------------------------------"
