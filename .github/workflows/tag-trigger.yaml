@@ -11,7 +11,7 @@ permissions:
 jobs:
   call_orchestrator:
     name: Call Orchestrator for Tag
-    uses: ./.github/workflows/entrypoint-workflow.yaml
+    uses: ./.github/workflows/orchestrator.yaml
     with:
       trigger_type: 'tag'
       github_event: ${{ toJson(github.event) }}
