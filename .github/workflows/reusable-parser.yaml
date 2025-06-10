@@ -15,8 +15,8 @@ jobs:
       - name: Parse Event Data
         id: parsed_data
         run: |
-          sha=$(echo '${{ inputs.event_json }}' | jq -r .after)
-          tag_name=$(echo '${{ inputs.event_json }}' | jq -r .ref | sed 's!refs/tags/!!')
+          sha=$(echo '${{ inputs.github_event }}' | jq -r .after)
+          tag_name=$(echo '${{ inputs.github_event }}' | jq -r .ref | sed 's!refs/tags/!!')
           
           echo "sha=$sha" >> $GITHUB_OUTPUT
           echo "tag=$tag_name" >> $GITHUB_OUTPUT
