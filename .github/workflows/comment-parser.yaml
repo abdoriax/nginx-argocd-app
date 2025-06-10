@@ -13,7 +13,7 @@ on:
         type: string
 
 jobs:
-  parse-and-echo:
+  comment-parse-and-echo:
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data
