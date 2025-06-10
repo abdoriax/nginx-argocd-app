@@ -15,13 +15,13 @@ jobs:
   call_tag_parser:
     name: Call Tag Parser
     if: fromJson(inputs.github_event).ref != null && startsWith(fromJson(inputs.github_event).ref, 'refs/tags/')
-    uses: ./.github/workflows/tag-parser-workflow.yaml
+    uses: ./.github/workflows/tag-parser.yaml
     with:
       github_event: ${{ inputs.github_event }}
 
   call_comment_parser:
     name: Call Comment Parser
     if: fromJson(inputs.github_event).action == 'created' && fromJson(inputs.github_event).issue != null && fromJson(inputs.github_event).comment != null
-    uses: ./.github/workflows/comment-parser-workflow.yaml
+    uses: ./.github/workflows/comment-parser.yaml
     with:
       github_event: ${{ inputs.github_event }}
