@@ -10,6 +10,10 @@ on:
 
 jobs:
   parse-and-echo:
+    # Granting specific permissions to the job is more secure
+    # and resolves issues where workflow-level permissions are restricted.
+    permissions:
+      pull-requests: read # This is required for the API call to get branch details.
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data
@@ -18,37 +22,38 @@ jobs:
           COMMENT=$(echo '${{ inputs.github_event }}' | jq -r .comment.body)
           OPERATION=$(echo "$COMMENT" | awk '{print $2}')
           ENVIRONMENT=$(echo "$COMMENT" | awk '{print $3}')
-          # Note: The SHA is not available in the issue_comment payload by default.
-          # If needed, it must be fetched via API in the orchestrator.
-          SHA="N/A (Requires API call in orchestrator)"
 
           echo "operation=$OPERATION" >> $GITHUB_OUTPUT
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
 
-      - name: Find Branch Name if Comment is on a PR
-        id: branch_info
+      - name: Fetch PR Details (Branch and SHA)
+        id: pr_details
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Default branch name to N/A
+          # Default values for branch and SHA
           BRANCH_NAME="N/A (Comment is not on a Pull Request)"
+          SHA="N/A (Comment is not on a Pull Request)"
+
           # Check if the 'pull_request' key exists in the issue payload
           PR_URL=$(echo '${{ inputs.github_event }}' | jq -r '.issue.pull_request.url')
           
           if [[ "$PR_URL" != "null" ]]; then
             # If it exists, call the GitHub API to get PR details
-            # Then parse the JSON response to get the head branch name
-            BRANCH_NAME=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "$PR_URL" | jq -r '.head.ref')
+            PR_DATA=$(curl -sf -H "Authorization: Bearer $GITHUB_TOKEN" "$PR_URL")
+            # Then parse the JSON response to get the head branch name and commit SHA
+            BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
+            SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
           fi
           
           echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
 
       - name: Echo Comment Information
         run: |
           echo "--- Comment Trigger Information ---"
-          echo "Commit SHA:   ${{ steps.parsed_comment.outputs.sha }}"
-          echo "Source Branch:${{ steps.branch_info.outputs.branch }}"
+          echo "Commit SHA:   ${{ steps.pr_details.outputs.sha }}"
+          echo "Source Branch:${{ steps.pr_details.outputs.branch }}"
           echo "Operation:    ${{ steps.parsed_comment.outputs.operation }}"
           echo "Environment:  ${{ steps.parsed_comment.outputs.environment }}"
           echo "-----------------------------------"
