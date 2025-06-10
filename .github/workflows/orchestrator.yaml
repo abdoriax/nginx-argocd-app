@@ -21,7 +21,7 @@ jobs:
     if: inputs.trigger_type == 'tag'
     uses: ./.github/workflows/tag-parser.yaml
     with:
-      event_json: ${{ inputs.github_event }}
+      github_event: ${{ inputs.github_event }}
 
   call_comment_parser:
     name: Call Comment Parser

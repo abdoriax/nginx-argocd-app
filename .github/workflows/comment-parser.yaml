@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       head_sha:
-        description: 'The SHA of the HEAD of the default branch'
+        description: 'The head SHA of the branch that triggered the workflow'
         required: true
         type: string
 
