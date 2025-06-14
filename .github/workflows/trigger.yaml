@@ -1,4 +1,4 @@
-name: Trigger on New Tag
+name: Trigger on Tag Push
 
 on:
   push:
