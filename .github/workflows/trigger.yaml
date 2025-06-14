@@ -4,9 +4,6 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-  issue_comment:
-    types: [created]
-    startsWith: '/service'
 
 permissions:
   contents: write
