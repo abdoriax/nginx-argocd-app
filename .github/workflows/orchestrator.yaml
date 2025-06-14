@@ -1,4 +1,4 @@
-name: Main Orchestrator Workflow
+name: Orchestrator Workflow
 
 on:
   workflow_call:

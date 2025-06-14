@@ -1,4 +1,4 @@
-name: Reusable Comment Parser Workflow
+name: Comment Parser
 
 on:
   workflow_call:
@@ -10,10 +10,8 @@ on:
 
 jobs:
   parse-and-echo:
-    # Granting specific permissions to the job is more secure
-    # and resolves issues where workflow-level permissions are restricted.
     permissions:
-      pull-requests: read # This is required for the API call to get branch details.
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Parse Comment Data
@@ -31,17 +29,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Default values for branch and SHA
           BRANCH_NAME="N/A (Comment is not on a Pull Request)"
           SHA="N/A (Comment is not on a Pull Request)"
 
-          # Check if the 'pull_request' key exists in the issue payload
           PR_URL=$(echo '${{ inputs.github_event }}' | jq -r '.issue.pull_request.url')
           
           if [[ "$PR_URL" != "null" ]]; then
-            # If it exists, call the GitHub API to get PR details
             PR_DATA=$(curl -sf -H "Authorization: Bearer $GITHUB_TOKEN" "$PR_URL")
-            # Then parse the JSON response to get the head branch name and commit SHA
             BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
             SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
           fi
