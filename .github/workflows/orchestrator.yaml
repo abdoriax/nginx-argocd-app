@@ -15,7 +15,7 @@ on:
 jobs:
 
   echo_event_type:
-    name: Output GitHub event name
+    name: Output GitHub Event Name
     runs-on: ubuntu-latest
     steps:
       - name: Echo the original event name
