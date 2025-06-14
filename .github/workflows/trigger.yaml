@@ -14,5 +14,5 @@ jobs:
     name: Call Orchestrator Workflow
     uses: ./.github/workflows/orchestrator.yaml
     with:
-      github_event: ${{ github.event }}
+      github_event: ${{ toJson(github.event) }}
       event_name: ${{ github.event_name }}
