@@ -11,31 +11,62 @@ on:
 jobs:
   tag-parse-and-echo:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Parse Event Data
         id: parsed_data
         run: |
-          # Extract the commit SHA and tag name from the event payload
           sha=$(echo '${{ inputs.github_event }}' | jq -r .after)
           tag_name=$(echo '${{ inputs.github_event }}' | jq -r .ref | sed 's!refs/tags/!!')
           
           echo "sha=$sha" >> $GITHUB_OUTPUT
           echo "tag=$tag_name" >> $GITHUB_OUTPUT
-
-      - name: Checkout repo to inspect git history
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Find Branch Name from Commit SHA
+      - name: Find Branch Name from Tag using GitHub API
         id: branch_info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          # Use 'git branch --contains' to find all branches that include the tag's commit.
-          # We then clean up the output to get a single, clean branch name.
-          # - grep -v 'HEAD' filters out the detached HEAD state.
-          # - sed 's|.*/||' removes remote prefixes like 'origin/'.
-          # - head -n 1 takes the first branch in the list, a common convention.
-          BRANCH_NAME=$(git branch -r --contains ${{ steps.parsed_data.outputs.sha }} | grep -v 'HEAD' | sed 's|.*/||' | head -n 1)
+          TAG_NAME="${{ steps.parsed_data.outputs.tag }}"
+
+          echo "Finding branches for tag: $TAG_NAME"
+
+          # Step 1: Get the commit SHA from the tag reference.
+          TAG_INFO_RESPONSE=$(curl -s -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/git/ref/tags/$TAG_NAME")
+          
+          COMMIT_SHA=$(echo "$TAG_INFO_RESPONSE" | jq -r .object.sha)
+
+          if [ "$COMMIT_SHA" == "null" ] || [ -z "$COMMIT_SHA" ]; then
+            echo "Error: Could not find commit SHA for tag $TAG_NAME."
+            # Fallback to the SHA from the event if the tag lookup fails
+            echo "Falling back to event's commit SHA: ${{ steps.parsed_data.outputs.sha }}"
+            COMMIT_SHA="${{ steps.parsed_data.outputs.sha }}"
+          fi
+
+          echo "Commit SHA for tag is: $COMMIT_SHA"
+
+          # Step 2: Find all branches where this commit is the HEAD.
+          BRANCHES_RESPONSE=$(curl -s -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/commits/$COMMIT_SHA/branches-where-head")
+
+          # Extract the first branch name from the list.
+          BRANCH_NAME=$(echo "$BRANCHES_RESPONSE" | jq -r '.[0].name')
+
+          if [ "$BRANCH_NAME" == "null" ] || [ -z "$BRANCH_NAME" ]; then
+            echo "Warning: Could not find a branch where this commit is the HEAD."
+            echo "This can happen if the tag points to an older commit."
+            echo "The 'branches-where-head' API only finds branches where the commit is the tip."
+            BRANCH_NAME="N/A"
+          fi
+
           echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       - name: Determine Environment
