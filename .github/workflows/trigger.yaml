@@ -1,0 +1,14 @@
+name: 'Regex Test'
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9].[0-9]+'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Workflow Triggered Correctly'
+      run: |
+        echo "SUCCESS: Triggered on tag ${{ github.ref_name }}"
