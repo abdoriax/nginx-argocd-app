@@ -1,11 +1,13 @@
-name: "Trigger on new tag push"
+name: "Trigger on New Tag Push"
 
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-(alpha|beta)'
-      - 'v[0-9]+.[0-9]+.[0-9]+-(alpha|beta).[a-zA-Z0-9.-]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.*'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.*'
 
 permissions:
   contents: write
@@ -16,6 +18,5 @@ jobs:
     name: Call Orchestrator Workflow
     uses: ./.github/workflows/orchestrator.yaml
     with:
-      # FIX: Ensure the event object is always passed as a valid JSON string
       github_event: ${{ toJson(github.event) }}
       event_name: ${{ github.event_name }}
