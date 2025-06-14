@@ -9,7 +9,7 @@ on:
         type: string
 
 jobs:
-  tag-parse-and-echo:
+  extract-tag-info:
     runs-on: ubuntu-latest
     permissions:
       contents: read
