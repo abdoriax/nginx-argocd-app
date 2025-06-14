@@ -3,9 +3,7 @@ name: Trigger on New Tag Push
 on:
   push:
     tags:
-      - 'v[0-9]*.[0-9]*.[0-9]'
-      - 'v[0-9]*.[0-9]*.[0-9]*-alpha*'
-      - 'v[0-9]*.[0-9]*.[0-9]*-beta*'
+      - 'v[0-9]+.[0-9]+.[0-9]+(-(alpha|beta)(\.[a-zA-Z0-9]+)*)?'
   issue_comment:
     types: [created]
     startsWith: '/service'
