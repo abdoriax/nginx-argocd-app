@@ -1,14 +1,21 @@
-name: 'Regex Test'
+name: Trigger on New Tag Push or Comment
 
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9].[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+(-(alpha|beta)(\.[a-zA-Z0-9]+)*)?'
+  issue_comment:
+    types: [created]
+    startsWith: '/service'
+
+permissions:
+  contents: write
+  pull-requests: read
 
 jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Workflow Triggered Correctly'
-        run: |
-          echo "SUCCESS: Triggered on tag ${{ github.ref_name }}"
+  call_orchestrator:
+    name: Call Orchestrator Workflow
+    uses: ./.github/workflows/orchestrator.yaml
+    with:
+      github_event: ${{ toJson(github.event) }}
+      event_name: ${{ github.event_name }}
