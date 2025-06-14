@@ -1,12 +1,14 @@
 name: Trigger on New Tag Push or Comment
 
 on:
+  # This is the full regex for tags like 'v1.2.3' or 'v1.2.3-beta.4'
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+(-(alpha|beta)(\.[a-zA-Z0-9]+)*)?'
+
+  # This trigger listens for any new comment
   issue_comment:
     types: [created]
-    startsWith: '/service'
 
 permissions:
   contents: write
@@ -15,6 +17,15 @@ permissions:
 jobs:
   call_orchestrator:
     name: Call Orchestrator Workflow
+
+    # This 'if' condition correctly filters the triggers
+    # It allows the job to run ONLY IF:
+    # 1. The event was a matching tag push OR
+    # 2. The event was an issue comment that starts with '/service'
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/service'))
+
     uses: ./.github/workflows/orchestrator.yaml
     with:
       github_event: ${{ toJson(github.event) }}
