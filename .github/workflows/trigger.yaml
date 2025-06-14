@@ -10,5 +10,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Workflow Triggered Correctly'
-      run: |
-        echo "SUCCESS: Triggered on tag ${{ github.ref_name }}"
+        run: |
+          echo "SUCCESS: Triggered on tag ${{ github.ref_name }}"
